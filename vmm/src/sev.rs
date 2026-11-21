@@ -7,8 +7,8 @@ use std::ffi::CString;
 use std::fs::File;
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 use std::os::unix::fs::FileExt;
-use std::result;
 use std::sync::{Arc, Mutex, Weak};
+use std::{result, thread};
 
 use hypervisor::MemoryConversionHandler;
 use linux_loader::bootparam::boot_params;
@@ -96,25 +96,23 @@ impl MeasuredBootInfo {
         Ok(hasher.finalize().into())
     }
 
-    pub(crate) fn build_hash_block(&self) -> Result<[u8; SEV_HASH_BLOCK_SIZE]> {
-        // Current tooling appends a NUL byte at the end of cmdlines:
-        // https://github.com/virtee/sev-snp-measure/blob/main/sevsnpmeasure/sev_hashes.py#L71-L74
-        let cmdline_digest: [u8; 32] = Sha256::digest(self.cmdline.as_bytes_with_nul()).into();
-
+    fn initrd_digest(&self) -> Result<[u8; SHA256_HASH_SIZE]> {
         // If no initrd is provided, we will simply hash over an empty buffer, mimicking
         // QEMU's behavior: https://gitlab.com/qemu-project/qemu/-/blob/master/target/i386/sev.c#L2387
-        let initrd_digest: [u8; 32] = if let Some(initramfs) = &self.initramfs {
+        if let Some(initramfs) = &self.initramfs {
             let mut initramfs = initramfs
                 .try_clone()
                 .map_err(|e| Self::measured_boot_io(&e))?;
             initramfs
                 .seek(SeekFrom::Start(0))
                 .map_err(|e| Self::measured_boot_io(&e))?;
-            Self::sha256_reader(initramfs)?
+            Self::sha256_reader(initramfs)
         } else {
-            Self::sha256_reader(Cursor::new([]))?
-        };
+            Ok(Sha256::digest([]).into())
+        }
+    }
 
+    fn kernel_digest(&self) -> Result<[u8; SHA256_HASH_SIZE]> {
         // The kernel components are split up into a setup section and the actual kernel data,
         // so split them up to avoid double counting, assuming this is a bzImage Linux kernel
         let mut setup_header = vec![0u8; size_of::<boot_params>()];
@@ -154,7 +152,33 @@ impl MeasuredBootInfo {
         kernel
             .seek(SeekFrom::Start(kernel_start))
             .map_err(|e| Self::measured_boot_io(&e))?;
-        let kernel_digest = Self::sha256_reader(Cursor::new(setup_data).chain(kernel))?;
+        Self::sha256_reader(Cursor::new(setup_data).chain(kernel))
+    }
+
+    pub(crate) fn build_hash_block(&self) -> Result<[u8; SEV_HASH_BLOCK_SIZE]> {
+        // Current tooling appends a NUL byte at the end of cmdlines:
+        // https://github.com/virtee/sev-snp-measure/blob/main/sevsnpmeasure/sev_hashes.py#L71-L74
+        let cmdline_digest: [u8; 32] = Sha256::digest(self.cmdline.as_bytes_with_nul()).into();
+
+        // Both files are opened independently by the payload loader. Only start
+        // a worker when both hashes have enough work to amortize creating it.
+        const PARALLEL_HASH_MIN_SIZE: u64 = 1024 * 1024;
+        let large = |f: &File| {
+            f.metadata()
+                .is_ok_and(|m| m.len() >= PARALLEL_HASH_MIN_SIZE)
+        };
+        let (initrd_digest, kernel_digest) = thread::scope(|scope| -> Result<_> {
+            if self.initramfs.as_ref().is_some_and(large)
+                && large(&self.kernel)
+                && let Ok(worker) =
+                    thread::Builder::new().spawn_scoped(scope, || self.initrd_digest())
+            {
+                let kernel = self.kernel_digest();
+                let initrd = worker.join().map_err(|_| errno::Error::new(libc::EIO))??;
+                return Ok((initrd, kernel?));
+            }
+            Ok((self.initrd_digest()?, self.kernel_digest()?))
+        })?;
 
         let table = PaddedSevHashTable {
             hash_table: SevHashTable {
@@ -524,6 +548,29 @@ mod tests {
             + 2 * size_of::<SevHashTableEntry>()
             + size_of::<[u8; 16]>()
             + size_of::<u16>()
+    }
+
+    #[test]
+    fn hash_block_with_large_kernel_and_initrd() {
+        let kernel_payload = vec![0x55; 1024 * 1024];
+        let initrd = vec![0xaa; 1024 * 1024];
+        let info = MeasuredBootInfo {
+            kernel: make_fake_kernel(8, &kernel_payload),
+            initramfs: Some(make_tempfile(&initrd)),
+            cmdline: CString::new("").unwrap(),
+        };
+        let block = info.build_hash_block().unwrap();
+        let kernel = kernel_hash_offset();
+        let initrd_offset = kernel - size_of::<SevHashTableEntry>();
+        assert_eq!(
+            &block[kernel..kernel + SHA256_HASH_SIZE],
+            &expected_kernel_digest(8, &kernel_payload)
+        );
+        let expected_initrd: [u8; SHA256_HASH_SIZE] = Sha256::digest(&initrd).into();
+        assert_eq!(
+            &block[initrd_offset..initrd_offset + SHA256_HASH_SIZE],
+            &expected_initrd
+        );
     }
 
     #[test]

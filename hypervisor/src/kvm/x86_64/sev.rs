@@ -21,11 +21,6 @@ use zerocopy::{FromZeros, Immutable, IntoBytes};
 
 pub(crate) type Result<T> = result::Result<T, errno::Error>;
 
-// See AMD Spec Section 8.18 — SNP_LAUNCH_UPDATE
-// The last 12 bits are metadata about the guest context
-// https://docs.amd.com/v/u/en-US/56860_PUB_SEV_SNP
-pub(crate) const GPA_METADATA_SHIFT_OFFSET: u32 = 12;
-
 // SNP in VMSA - linux/arch/x86/include/asm/svm.h
 const SVM_SEV_FEAT_SNP_ACTIVE: u64 = 1 << 0;
 
