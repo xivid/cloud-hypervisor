@@ -202,8 +202,6 @@ use kvm_bindings::{
     KVM_MEMORY_ATTRIBUTE_PRIVATE, KVM_X86_SNP_VM, kvm_memory_attributes, kvm_segment as Segment,
 };
 use vm_memory::GuestAddress;
-#[cfg(feature = "sev_snp")]
-use x86_64::sev;
 
 // Hardcoded GPA of a bootloader and VMSA page for KVM
 // TODO: Derive these from the IGVM file's PageData/SnpVpContext directives
@@ -588,20 +586,13 @@ impl vm::Vm for KvmVm {
             return Ok(());
         }
         assert_eq!(pfns.len(), uaddrs.len());
-        for i in 0..pfns.len() {
-            self.fd
-                .set_memory_attributes(kvm_memory_attributes {
-                    address: pfns[i] << sev::GPA_METADATA_SHIFT_OFFSET,
-                    size: page_size as u64,
-                    attributes: kvm_bindings::KVM_MEMORY_ATTRIBUTE_PRIVATE as u64,
-                    // Flags must be zero o/w error (flags aren't being used here yet)
-                    flags: 0,
-                })
-                .map_err(|e| vm::HypervisorVmError::ImportIsolatedPages(e.into()))?;
+        // SNP guest_memfd regions are already private at registration. No vCPU
+        // can change their visibility before the launch import completes.
+        for (&pfn, &uaddr) in pfns.iter().zip(uaddrs) {
             self.sev_fd
                 .as_ref()
                 .unwrap()
-                .launch_update(&self.fd, uaddrs[i], page_size as u64, pfns[i], page_type)
+                .launch_update(&self.fd, uaddr, u64::from(page_size), pfn, page_type)
                 .map_err(|e| vm::HypervisorVmError::ImportIsolatedPages(e.into()))?;
         }
 
