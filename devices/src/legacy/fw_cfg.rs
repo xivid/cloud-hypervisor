@@ -490,13 +490,34 @@ impl FwCfg {
 
     fn dma_read_content(&self, content: &FwCfgContent, len: u32, address: u64) -> Result<u32> {
         let content_size = content.size()?.saturating_sub(self.data_offset);
-        let op_size = cmp::min(content_size, len);
-        let mut buf = vec![0u8; op_size as usize];
-        Self::read_content(content, self.data_offset, buf.as_mut_bytes())?;
-        let r = self
-            .memory
-            .memory()
-            .write(buf.as_bytes(), GuestAddress(address));
+        let op_size = cmp::min(content_size, len) as usize;
+        let start = self.data_offset as usize;
+        let mem = self.memory.memory();
+        let address = GuestAddress(address);
+        let r = if op_size == 0 {
+            mem.write(&[], address)
+        } else {
+            let end = start + op_size;
+            match content {
+                FwCfgContent::Bytes(bytes) => mem.write(&bytes[start..end], address),
+                FwCfgContent::Slice(bytes) => mem.write(&bytes[start..end], address),
+                FwCfgContent::U32(value) => mem.write(&value.to_le_bytes()[start..end], address),
+                FwCfgContent::File(offset, file) => {
+                    // Oak stage0 reads the payload through a single shared 4 KiB page.
+                    // Stage a complete descriptor before publishing the bytes to the guest.
+                    let mut page = [0; 4096];
+                    let mut large;
+                    let buf = if op_size <= page.len() {
+                        &mut page[..op_size]
+                    } else {
+                        large = vec![0; op_size];
+                        &mut large[..]
+                    };
+                    file.read_exact_at(buf, offset + u64::from(self.data_offset))?;
+                    mem.write(buf, address)
+                }
+            }
+        };
         match r {
             Err(e) => {
                 error!("fw_cfg: dma read error: {e:x?}");
@@ -1246,6 +1267,31 @@ mod tests {
         assert_eq!(dma_buffer(&mem, 3), [1, 2, 3]);
 
         assert_eq!(run_dma(&mut fw_cfg, &mem, write, 1), error);
+    }
+
+    #[test]
+    fn test_dma_file_reads_across_page_size() {
+        let mem: GuestMemory = GuestMemory::from_ranges(&[(DMA_DESCRIPTOR, 0x4000)]).unwrap();
+        let mut fw_cfg = FwCfg::new(GuestMemoryAtomic::new(mem.clone()), None);
+        let temp = TempFile::new().unwrap();
+        let payload: Vec<u8> = (0..9000).map(|i| (i % 251) as u8).collect();
+        temp.as_file().write_all_at(&payload, 0).unwrap();
+        fw_cfg
+            .add_item(FwCfgItem {
+                name: "file".into(),
+                content: FwCfgContent::File(7, temp.as_file().try_clone().unwrap()),
+            })
+            .unwrap();
+        select(&mut fw_cfg, FW_CFG_FILE_FIRST);
+        let read = AccessControl::new().with_read(true);
+        let mut start = 7;
+        for len in [4096, 4097, 1024] {
+            assert_eq!(run_dma(&mut fw_cfg, &mem, read, len), 0);
+            let end = (start + len as usize).min(payload.len());
+            assert_eq!(dma_buffer(&mem, end - start), payload[start..end]);
+            start = end;
+        }
+        assert_eq!(fw_cfg.data_offset as usize, payload.len() - 7);
     }
 
     #[test]
