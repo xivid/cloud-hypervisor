@@ -1,5 +1,5 @@
 # Experimental fork-only measurement. Run from an isolated branch.
-name: CVM boot KVM control
+name: CVM boot KVM DMA control
 on:
   push:
     branches: ['bench/cvm-boot-kvm*']
@@ -33,20 +33,43 @@ jobs:
             (cd "$source" && cargo +stable build --locked --release --bin cloud-hypervisor --no-default-features --features kvm,igvm,sev_snp,fw_cfg)
             install -m755 "$CARGO_TARGET_DIR/release/cloud-hypervisor" "$source/ch-measure"
           done
-      - name: Prepare pinned direct-boot kernel and deterministic initramfs
+      - name: Record relevant host capabilities
+        run: |
+          mkdir -p results
+          {
+            uname -srmo
+            lscpu | grep -E '^(Architecture|CPU\(s\)|Vendor ID|Model name|Hypervisor vendor|Virtualization type):'
+            for path in /dev/kvm /dev/sev; do
+              if test -c "$path"; then echo "$path present"; else echo "$path absent"; fi
+            done
+            for param in sev sev_es sev_snp; do
+              path=/sys/module/kvm_amd/parameters/$param
+              if test -r "$path"; then echo "$param=$(cat "$path")"; fi
+            done
+          } | tee results/host.txt
+      - name: Measure regular KVM shared-attribute ioctl
+        run: |
+          gcc -O2 -Wall -Wextra -Werror bench/kvm-attr-control.c -o "$RUNNER_TEMP/kvm-attr-control"
+          status=0
+          sudo "$RUNNER_TEMP/kvm-attr-control" > results/kvm-attrs.csv 2> results/kvm-attrs.log || status=$?
+          echo "exit=$status" >> results/kvm-attrs.log
+          cat results/kvm-attrs.log
+          if (( status != 77 && status != 0 )); then exit "$status"; fi
+      - name: Build the PID 1 fw_cfg transfer check
         run: |
           set -eux
-          curl --fail --location --retry 3 -o vmlinux https://github.com/cloud-hypervisor/linux/releases/download/ch-release-v7.2.8-20261009/vmlinux-x86_64
-          echo 'edfeb8a8a6c04ff2979e9f1c700feaa29b8f564f952261834ef0b7d2e673a853  vmlinux' | sha256sum -c -
-          python3 bench/make_initramfs.py --pad-mib 8 initramfs.gz
-      - name: Boot six-vCPU eight-GiB guests to PID 1
+          curl --fail --location --retry 3 -o kernel.deb https://deb.debian.org/debian/pool/main/l/linux-signed-amd64/linux-image-6.12.107+deb13-cloud-amd64_6.12.107-1_amd64.deb
+          echo '04434ff520f860423eafe4203d986a35682ce73c2f71baa39e988ca0da93ac91  kernel.deb' | sha256sum -c -
+          dpkg-deb -x kernel.deb kernel-tree
+          python3 bench/prepare_dma.py --base-init bench/make_initramfs.py --output fixture
+      - name: Boot to verified fw_cfg DMA completion in PID 1
         run: |
-          sudo python3 bench/boot_bench.py --baseline "$RUNNER_TEMP/base/ch-measure" --candidate "$GITHUB_WORKSPACE/ch-measure" --kernel vmlinux --initramfs initramfs.gz --cpus 6 --memory-gib 8 --pairs 10 --output results
-          cat results/summary.json >> "$GITHUB_STEP_SUMMARY"
-      - name: Collect serial logs and samples
+          sudo python3 bench/boot_bench.py --baseline "$RUNNER_TEMP/base/ch-measure" --candidate "$GITHUB_WORKSPACE/ch-measure" --kernel kernel-tree/boot/vmlinuz-6.12.107+deb13-cloud-amd64 --initramfs fixture/initramfs.gz --dma-fixture fixture/fixture.bin --cpus 6 --memory-gib 8 --pairs 20 --output results/dma
+          cat results/dma/summary.json >> "$GITHUB_STEP_SUMMARY"
+          cat results/dma/runs.csv
+      - name: Collect control results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: plain-kvm-boot
+          name: kvm-dma-and-attrs
           path: results
-          if-no-files-found: ignore
