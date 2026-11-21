@@ -1,0 +1,3 @@
+[    0.145640] kvm_intel: VMX not supported by CPU 0
+[    0.146869] kvm_amd: CPU 0 isn't AMD or Hygon
+CH_BENCH_READY cpus=6 mem_kib=8147924 snp=0

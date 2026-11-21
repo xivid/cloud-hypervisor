@@ -1,0 +1,11 @@
+{
+  "baseline": {
+    "median_ms": 241.313398,
+    "p95_ms": 256.419526
+  },
+  "candidate": {
+    "median_ms": 247.259949,
+    "p95_ms": 261.220976
+  },
+  "median_paired_saving_ms": -3.0123869999999897
+}

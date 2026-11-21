@@ -1,0 +1,16 @@
+{
+  "input_sha256": "cb5d074b768ad2822abea89fc118b350ff8472967910d793ace8aacb1ee5516a",
+  "igvm_bytes": 410216,
+  "vcpu_contexts": 6,
+  "page_directives": {
+    "normal": 128,
+    "secrets": 1,
+    "zero": 9,
+    "cpuid": 1
+  },
+  "additional_measured_hash_page": 1,
+  "snp_launch_updates_no_retry": 140,
+  "baseline_import_attribute_calls_no_retry": 140,
+  "patched_import_attribute_calls_no_retry": 0,
+  "scope": "excludes memslot registration and optional firmware CPUID correction/retry"
+}

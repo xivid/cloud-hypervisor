@@ -1,0 +1,40 @@
+{
+  "scope": "build_hash_block CPU phase, warm file cache, taskset -c 0,2; alternating AB/BA, 3 warm-up pairs, release profile opt-level=s/LTO, Rust 1.89, Intel Xeon 8573C",
+  "before": "f0bb0156951e",
+  "after": "9684dbc",
+  "kernel_bytes": 8847872,
+  "kernel_sha256": "40f5ac32a703528a850dd2cedb3de5cb5bfc383c5abbff1424a135d7a85bec35",
+  "boot_initrd_sha256": "8fad91adcc79475e9b86b8b8bcc2a5d700ea90cdea202459a62e1ed3abe39848",
+  "cases": [
+    {
+      "initrd_bytes": 0,
+      "pairs": 51,
+      "wins": 30,
+      "baseline_median_ms": 8.081289,
+      "candidate_median_ms": 7.921574,
+      "paired_saving_p25_ms": -0.4397044999999995,
+      "paired_saving_p50_ms": 0.11874199999999924,
+      "paired_saving_p75_ms": 0.6111044999999997
+    },
+    {
+      "initrd_bytes": 8712835,
+      "pairs": 51,
+      "wins": 48,
+      "baseline_median_ms": 16.337063,
+      "candidate_median_ms": 8.456145,
+      "paired_saving_p25_ms": 6.239068999999999,
+      "paired_saving_p50_ms": 7.429220000000001,
+      "paired_saving_p75_ms": 8.52228
+    },
+    {
+      "initrd_bytes": 33554432,
+      "pairs": 51,
+      "wins": 47,
+      "baseline_median_ms": 44.753471,
+      "candidate_median_ms": 32.17254,
+      "paired_saving_p25_ms": 8.829301999999998,
+      "paired_saving_p50_ms": 12.661988999999998,
+      "paired_saving_p75_ms": 17.4128525
+    }
+  ]
+}

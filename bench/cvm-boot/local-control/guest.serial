@@ -1,0 +1,2 @@
+[    2.059543] kvm_intel: VMX not supported by CPU 5
+CH_BENCH_READY cpus=6 mem_kib=8146744 snp=0

@@ -1,0 +1,32 @@
+{
+  "host": {
+    "system": "Linux",
+    "node": "runnervmeozm8",
+    "release": "7.0.0-1017-azure",
+    "version": "#17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "cpus": 6,
+  "memory_gib": 8,
+  "pairs": 10,
+  "inputs": {
+    "baseline": {
+      "path": "/home/runner/work/_temp/base/ch-measure",
+      "sha256": "f6a858fca0a015174d1e0272d026f470f1a8be730e8c421b4f26e22f142bf08d"
+    },
+    "candidate": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/ch-measure",
+      "sha256": "5e0f455143293c72c2adfa62e49923d3bc2587b9b89e5ea80e0e5fe15ec7a8a5"
+    },
+    "kernel": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/vmlinux",
+      "sha256": "edfeb8a8a6c04ff2979e9f1c700feaa29b8f564f952261834ef0b7d2e673a853"
+    },
+    "initramfs": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/initramfs.gz",
+      "sha256": "f5d530a62022cb5a282c3eb6c2594fa529a6361991f11f397cbc29a92aebd38c"
+    }
+  },
+  "timeout_s": 180
+}
