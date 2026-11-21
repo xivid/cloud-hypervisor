@@ -1,0 +1,27 @@
+{
+  "scope": "build_hash_block, Linux per-file page cache evicted; virtual storage, controller and backend caches uncontrolled; executable is warm; 3 warm-up pairs; alternating AB/BA; file eviction and mincore excluded from the timed interval",
+  "host_cpus": [
+    0,
+    2
+  ],
+  "pairs": 51,
+  "sizes": [
+    8847872,
+    8712835
+  ],
+  "sha256": [
+    "40f5ac32a703528a850dd2cedb3de5cb5bfc383c5abbff1424a135d7a85bec35",
+    "8fad91adcc79475e9b86b8b8bcc2a5d700ea90cdea202459a62e1ed3abe39848"
+  ],
+  "mincore_pages": [
+    2161,
+    2128
+  ],
+  "output_hash_block_sha256": "c52b90ef3b5a862dfbc05a2c5dade60866a6f8ab17b64a43e94b309ad1bc356d",
+  "baseline_median_ms": 21.842997,
+  "candidate_median_ms": 14.833791,
+  "paired_saving_p25_ms": 2.6587305,
+  "paired_saving_p50_ms": 6.1015440000000005,
+  "paired_saving_p75_ms": 9.564656,
+  "candidate_wins": 48
+}

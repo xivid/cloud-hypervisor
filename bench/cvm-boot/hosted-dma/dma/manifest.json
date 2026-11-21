@@ -1,0 +1,36 @@
+{
+  "host": {
+    "system": "Linux",
+    "node": "ip-10-0-136-182",
+    "release": "7.0.0-1014-aws",
+    "version": "#14~24.04.1-Ubuntu SMP PREEMPT Fri Sep 18 21:24:59 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "cpus": 6,
+  "memory_gib": 8,
+  "pairs": 20,
+  "inputs": {
+    "baseline": {
+      "path": "/home/runner/work/_temp/base/ch-measure",
+      "sha256": "f6a858fca0a015174d1e0272d026f470f1a8be730e8c421b4f26e22f142bf08d"
+    },
+    "candidate": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/ch-measure",
+      "sha256": "3374df706ea9ec460324029a74bac216db519b61601811dd873a5e81238efb62"
+    },
+    "kernel": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/kernel-tree/boot/vmlinuz-6.12.107+deb13-cloud-amd64",
+      "sha256": "d1bc2c60a78ae6979736d081bc3c90e45ace6baf414f767dff588e319d3492bd"
+    },
+    "initramfs": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/fixture/initramfs.gz",
+      "sha256": "44f98ca456f699c92415c7561b45e16c26dfc4e23ab5180df92504842aa8ec2d"
+    },
+    "dma_fixture": {
+      "path": "/home/runner/work/cloud-hypervisor/cloud-hypervisor/fixture/fixture.bin",
+      "sha256": "6d3271a3aa7dbc0733411973fa1bafcc6f57372c90e1acf7920fb04fe1a5719b"
+    }
+  },
+  "timeout_s": 180
+}

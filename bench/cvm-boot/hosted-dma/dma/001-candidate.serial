@@ -1,0 +1,2 @@
+CH_BENCH_DMA_READY bytes=8388608 descriptors=2048 ns=76741231
+CH_BENCH_READY cpus=6 mem_kib=8138228 snp=0

@@ -1,0 +1,9 @@
+Linux 7.0.0-1014-aws x86_64 GNU/Linux
+Architecture:                            x86_64
+CPU(s):                                  4
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Xeon(R) 6975P-C
+Hypervisor vendor:                       KVM
+Virtualization type:                     full
+/dev/kvm present
+/dev/sev absent
